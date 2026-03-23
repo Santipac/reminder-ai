@@ -1,0 +1,30 @@
+{
+  "name": "reminder-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A WhatsApp reminder bot powered by AI. Send a voice note or text message describing what you need to remember and when — the bot parses it, stores it, and sends you a personalized reminder at the right time.",
+  "license": "MIT",
+  "author": "Santipac",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/santipac/reminder-ai"
+  },
+  "homepage": "https://github.com/santipac/reminder-ai",
+  "keywords": ["whatsapp", "reminder", "bot", "ai", "cloudflare", "workers", "turso", "openai", "drizzle", "hono"],
+  "scripts": {
+    "dev": "bunx wrangler dev",
+    "deploy": "bunx wrangler deploy",
+    "cf-typegen": "bunx wrangler types"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0",
+    "drizzle-orm": "^0.40.1",
+    "hono": "^4.7.4",
+    "openai": "^4.91.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250317.0",
+    "typescript": "^5.8.2",
+    "wrangler": "^4.0.0"
+  }
+}
