@@ -26,6 +26,19 @@ export async function runScheduler(env: Env): Promise<void> {
   console.log(`[scheduler] Sending ${due.length} due reminder(s)`);
 
   for (const reminder of due) {
+    if (!reminder.phone) {
+      // BSUID-targeted outbound sending isn't live in Kapso yet; without a phone
+      // we can't deliver. Mark failed so the cron doesn't retry every minute.
+      console.error(
+        `[scheduler] Reminder #${reminder.id} has no phone (bsuid=${reminder.businessScopedUserId ?? 'null'}); marking failed until BSUID-send is supported`,
+      );
+      await db
+        .update(reminders)
+        .set({ status: 'failed' })
+        .where(eq(reminders.id, reminder.id));
+      continue;
+    }
+
     try {
       const personalizedMessage = await generatePersonalizedReminder(reminder.message, env);
       await sendWhatsAppMessage(reminder.phone, personalizedMessage, env);
