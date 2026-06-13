@@ -3,7 +3,7 @@ import { and, asc, eq, isNull, or, type SQL } from 'drizzle-orm';
 import { getDb } from '../db/client';
 import { reminders } from '../db/schema';
 import { parseIntent } from '../services/openai';
-import { sendWhatsAppMessage } from '../services/kapso';
+import { sendReaction, sendWhatsAppMessage } from '../services/kapso';
 import { verifyWebhookSignature } from '../utils/webhook-verify';
 import type { Env } from '../index';
 
@@ -143,7 +143,39 @@ async function reconcileIdentity(identity: Identity, env: Env): Promise<void> {
     .where(and(eq(reminders.phone, identity.phone), isNull(reminders.businessScopedUserId)));
 }
 
+// Best-effort reaction to signal processing state — never let a reaction
+// failure interfere with the actual reminder handling.
+async function react(to: string, messageId: string, emoji: string, env: Env): Promise<void> {
+  try {
+    await sendReaction(to, messageId, emoji, env);
+  } catch (err) {
+    console.warn('[webhook] Failed to send reaction', { emoji, err });
+  }
+}
+
 async function handleMessage(
+  message: KapsoMessage,
+  identity: Identity,
+  env: Env,
+): Promise<void> {
+  const replyTo = identity.phone;
+  const canReact = Boolean(replyTo && message.id);
+
+  // Acknowledge receipt immediately with a "processing" clock.
+  if (canReact) await react(replyTo!, message.id, '🕐', env);
+
+  try {
+    await processMessage(message, identity, env);
+    // Done — replace the clock with a checkmark.
+    if (canReact) await react(replyTo!, message.id, '✅', env);
+  } catch (err) {
+    // Surface the failure on the original message before rethrowing.
+    if (canReact) await react(replyTo!, message.id, '❌', env);
+    throw err;
+  }
+}
+
+async function processMessage(
   message: KapsoMessage,
   identity: Identity,
   env: Env,
